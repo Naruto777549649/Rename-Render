@@ -1,36 +1,69 @@
-# Don't Remove Credit @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot @Tech_VJ
-# Ask Doubt on telegram @KingVJ01
+import os
+import time
+from pyrogram import Client, filters
 
+API_ID = 25698862  # Apna API ID dalein
+API_HASH = "7d7739b44f5f8c825d48cc6787889dbc"  # Apna API Hash dalein
+BOT_TOKEN = "8083510928:AAHZaUVcGJTXPlI8j-NIUhGf-CJe4946sfg"  # Apna Bot Token dalein
 
-import re, os
+bot = Client("video_renamer_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-id_pattern = re.compile(r'^.\d+$') 
+thumbnail_dict = {}
 
-API_ID = os.environ.get("API_ID", "")
+# Bot Start Command
+@bot.on_message(filters.private & filters.command("start"))
+async def start_command(client, message):
+    await message.reply_text("👋 Welcome! Ab aap bot use kar sakte hain.\n\nSend a thumbnail first!")
 
-API_HASH = os.environ.get("API_HASH", "")
+# Receive Thumbnail
+@bot.on_message(filters.private & filters.photo)
+async def thumbnail_handler(client, message):
+    user_id = message.chat.id
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN", "") 
+    thumbnail_path = f"thumbnail_{user_id}.jpg"
+    await message.download(file_name=thumbnail_path)
+    thumbnail_dict[user_id] = thumbnail_path
 
-FORCE_SUB = os.environ.get("FORCE_SUB", "VJ_Botz") 
+    await message.reply_text("✅ Thumbnail saved! Now send me the video.")
 
-             # Don't Remove Credit @VJ_Botz
-             # Subscribe YouTube Channel For Amazing Bot @Tech_VJ
-             # Ask Doubt on telegram @KingVJ01
+# Receive Video
+@bot.on_message(filters.private & filters.video)
+async def video_handler(client, message):
+    user_id = message.chat.id
 
-DB_NAME = os.environ.get("DB_NAME", "renamevjbot")     
+    if user_id not in thumbnail_dict:
+        await message.reply_text("❌ Please send a thumbnail first.")
+        return
 
-DB_URL = os.environ.get("DB_URL", "")
- 
-FLOOD = int(os.environ.get("FLOOD", "10"))
+    thumbnail_path = thumbnail_dict.pop(user_id)
 
-START_PIC = os.environ.get("START_PIC", "https://te.legra.ph/file/119729ea3cdce4fefb6a1.jpg")
+    if not os.path.exists(thumbnail_path):
+        await message.reply_text("❌ Error: Thumbnail not found!")
+        return
 
-ADMIN = [int(admin) if id_pattern.search(admin) else admin for admin in os.environ.get('ADMIN', '5606411877').split()]
+    video_path = await bot.download_media(message.video.file_id)
+    
+    if not os.path.exists(video_path):
+        await message.reply_text("❌ Error: Video download failed!")
+        return
 
-PORT = os.environ.get("PORT", "8080")
+    await message.reply_text("✅ Processing your video... Please wait!")
 
-# Don't Remove Credit @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot @Tech_VJ
-# Ask Doubt on telegram @KingVJ01
+    try:
+        await bot.send_video(
+            user_id,
+            video=video_path,
+            thumb=thumbnail_path,
+            caption="🎬 Here is your video with new thumbnail!"
+        )
+        await message.reply_text("✅ Video sent successfully!")
+
+        # Clean up the files
+        os.remove(video_path)
+        os.remove(thumbnail_path)
+
+    except Exception as e:
+        await message.reply_text(f"❌ Error sending video: {str(e)}")
+
+print("Bot is running...")
+bot.run()
