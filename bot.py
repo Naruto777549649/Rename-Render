@@ -1,56 +1,69 @@
-# Don't Remove Credit @VJ_Botz
-# Subscribe YouTube Channel For Amazing Bot @Tech_VJ
-# Ask Doubt on telegram @KingVJ01
+import os
+import time
+from pyrogram import Client, filters
 
-import logging
-import logging.config
-from pyrogram import Client 
-from config import API_ID, API_HASH, BOT_TOKEN, FORCE_SUB, PORT
-from aiohttp import web
-from plugins.web_support import web_server
+API_ID = 25698862  # Apna API ID dalein
+API_HASH = "7d7739b44f5f8c825d48cc6787889dbc"  # Apna API Hash dalein
+BOT_TOKEN = "8083510928:AAHZaUVcGJTXPlI8j-NIUhGf-CJe4946sfg"  # Apna Bot Token dalein
 
-logging.config.fileConfig('logging.conf')
-logging.getLogger().setLevel(logging.INFO)
-logging.getLogger("pyrogram").setLevel(logging.ERROR)
+bot = Client("video_renamer_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
+thumbnail_dict = {}
 
-class Bot(Client):
+# Bot Start Command
+@bot.on_message(filters.private & filters.command("start"))
+async def start_command(client, message):
+    await message.reply_text("👋 Welcome! Ab aap bot use kar sakte hain.\n\nSend a thumbnail first!")
 
-    def __init__(self):
-        super().__init__(
-            name="WebX-Renamer",
-            api_id=API_ID,
-            api_hash=API_HASH,
-            bot_token=BOT_TOKEN,
-            workers=50,
-            plugins={"root": "plugins"},
-            sleep_threshold=5,
+# Receive Thumbnail
+@bot.on_message(filters.private & filters.photo)
+async def thumbnail_handler(client, message):
+    user_id = message.chat.id
+
+    thumbnail_path = f"thumbnail_{user_id}.jpg"
+    await message.download(file_name=thumbnail_path)
+    thumbnail_dict[user_id] = thumbnail_path
+
+    await message.reply_text("✅ Thumbnail saved! Now send me the video.")
+
+# Receive Video
+@bot.on_message(filters.private & filters.video)
+async def video_handler(client, message):
+    user_id = message.chat.id
+
+    if user_id not in thumbnail_dict:
+        await message.reply_text("❌ Please send a thumbnail first.")
+        return
+
+    thumbnail_path = thumbnail_dict.pop(user_id)
+
+    if not os.path.exists(thumbnail_path):
+        await message.reply_text("❌ Error: Thumbnail not found!")
+        return
+
+    video_path = await bot.download_media(message.video.file_id)
+    
+    if not os.path.exists(video_path):
+        await message.reply_text("❌ Error: Video download failed!")
+        return
+
+    await message.reply_text("✅ Processing your video... Please wait!")
+
+    try:
+        await bot.send_video(
+            user_id,
+            video=video_path,
+            thumb=thumbnail_path,
+            caption="🎬 Here is your video with new thumbnail!"
         )
+        await message.reply_text("✅ Video sent successfully!")
 
-    async def start(self):
-       await super().start()
-       me = await self.get_me()
-       self.mention = me.mention
-       self.username = me.username 
-       self.force_channel = FORCE_SUB
-       if FORCE_SUB:
-         try:
-            link = await self.export_chat_invite_link(FORCE_SUB)                  
-            self.invitelink = link
-         except Exception as e:
-            logging.warning(e)
-            logging.warning("Make Sure Bot admin in force sub channel")             
-            self.force_channel = None
-       app = web.AppRunner(await web_server())
-       await app.setup()
-       bind_address = "0.0.0.0"
-       await web.TCPSite(app, bind_address, PORT).start()
-       logging.info(f"{me.first_name} ✅✅ BOT started successfully ✅✅")
-      
+        # Clean up the files
+        os.remove(video_path)
+        os.remove(thumbnail_path)
 
-    async def stop(self, *args):
-      await super().stop()      
-      logging.info("Bot Stopped 🙄")
-        
-bot = Bot()
+    except Exception as e:
+        await message.reply_text(f"❌ Error sending video: {str(e)}")
+
+print("Bot is running...")
 bot.run()
