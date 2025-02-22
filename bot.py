@@ -4,7 +4,7 @@ from pyrogram import Client, filters
 
 API_ID = 25698862  # Apna API ID dalein
 API_HASH = "7d7739b44f5f8c825d48cc6787889dbc"  # Apna API Hash dalein
-BOT_TOKEN = "8083510928:AAHZaUVcGJTXPlI8j-NIUhGf-CJe4946sfg"  # Apna Bot Token dalein
+BOT_TOKEN = 8058670363:AAFjE5WxGuf7AY0EXOODPmqsJJ8fom3U0ZQ  # Apna Bot Token dalein
 
 bot = Client("video_renamer_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
